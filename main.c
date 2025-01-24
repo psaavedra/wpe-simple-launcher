@@ -100,13 +100,13 @@ int main(int argc, char *argv[]) {
 
     // Create a new WebKitWebView
     g_autoptr(WebKitSettings) settings = webkit_settings_new();
-    g_autoptr(WebKitWebsitePolicies) websitePolicy = webkit_website_policies_new_with_policies(
+    g_autoptr(WebKitWebsitePolicies) website_policy = webkit_website_policies_new_with_policies(
             "autoplay", WEBKIT_AUTOPLAY_ALLOW,
             NULL);;
     web_view = g_object_new(WEBKIT_TYPE_WEB_VIEW,
             "settings", settings,
             "web-context", webkit_web_context_get_default(),
-            "website-policies", websitePolicy,
+            "website-policies", website_policy,
             NULL);
 
     WPEToplevel *toplevel = wpe_view_get_toplevel(webkit_web_view_get_wpe_view(web_view));
