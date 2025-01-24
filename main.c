@@ -13,6 +13,7 @@ static WebKitWebView *web_view;
 static gchar *current_uri = NULL;
 static int automation = 0;
 static int maximized = 0;
+static int fullscreen = 0;
 
 static gboolean automation_views_limit_reached = FALSE;
 
@@ -152,8 +153,9 @@ on_web_context_automation_started(WebKitWebContext *context, WebKitAutomationSes
 
 int main(int argc, char *argv[]) {
     static struct option long_options[] = {
-        {"maximized", no_argument, &maximized, 1},
         {"automation", no_argument, &automation, 1},
+        {"fullscreen", no_argument, &fullscreen, 1},
+        {"maximized", no_argument, &maximized, 1},
         {0, 0, 0, 0}
     };
 
@@ -167,7 +169,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (optind >= argc) {
-        g_printerr("Usage: %s [--maximized] [--automation] <ctrl_file_path>\n", argv[0]);
+        g_printerr("Usage: %s [--fullscreen] [--maximized] [--automation] <ctrl_file_path>\n", argv[0]);
         return 1;
     }
 
@@ -198,6 +200,10 @@ int main(int argc, char *argv[]) {
 
     if (maximized) {
         maximize_window(web_view, TRUE);
+    }
+
+    if (fullscreen) {
+        fullscreen_window(web_view, TRUE);
     }
 
     // Set up a timeout to check the file every second
