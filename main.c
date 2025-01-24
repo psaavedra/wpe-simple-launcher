@@ -41,6 +41,24 @@ static void write_done_to_file(const gchar *file_path) {
     g_file_set_contents(file_path, "done", -1, NULL);
 }
 
+static void maximize_window(WebKitWebView *web_view, gboolean maximized) {
+    WPEToplevel *toplevel = wpe_view_get_toplevel(webkit_web_view_get_wpe_view(web_view));
+    if (maximized) {
+        wpe_toplevel_maximize(toplevel);
+    } else {
+        wpe_toplevel_unmaximize(toplevel);
+    }
+}
+
+static void fullscreen_window(WebKitWebView *web_view, gboolean fullscreen) {
+    WPEToplevel *toplevel = wpe_view_get_toplevel(webkit_web_view_get_wpe_view(web_view));
+    if (fullscreen) {
+        wpe_toplevel_fullscreen(toplevel);
+    } else {
+        wpe_toplevel_unfullscreen(toplevel);
+    }
+}
+
 // Timeout function to handle file content
 static gboolean load_view(gpointer user_data) {
     const gchar *file_path = (const gchar *)user_data;
@@ -64,17 +82,13 @@ static gboolean load_view(gpointer user_data) {
     } else if (trimmed_strcmp0(content, "reload") == 0) {
         webkit_web_view_reload(web_view);
     } else if (trimmed_strcmp0(content, "unfullscreen") == 0) {
-        WPEToplevel *toplevel = wpe_view_get_toplevel(webkit_web_view_get_wpe_view(web_view));
-        wpe_toplevel_unfullscreen(toplevel);
+        fullscreen_window(web_view, FALSE);
     } else if (trimmed_strcmp0(content, "fullscreen") == 0) {
-        WPEToplevel *toplevel = wpe_view_get_toplevel(webkit_web_view_get_wpe_view(web_view));
-        wpe_toplevel_fullscreen(toplevel);
+        fullscreen_window(web_view, TRUE);
     } else if (trimmed_strcmp0(content, "unmaximized") == 0) {
-        WPEToplevel *toplevel = wpe_view_get_toplevel(webkit_web_view_get_wpe_view(web_view));
-        wpe_toplevel_unmaximize(toplevel);
+        maximize_window(web_view, FALSE);
     } else if (trimmed_strcmp0(content, "maximized") == 0) {
-        WPEToplevel *toplevel = wpe_view_get_toplevel(webkit_web_view_get_wpe_view(web_view));
-        wpe_toplevel_maximize(toplevel);
+        maximize_window(web_view, TRUE);
     } else {
         // Assume the content is a URL
         if (current_uri == NULL || trimmed_strcmp0(current_uri, content) != 0) {
