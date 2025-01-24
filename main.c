@@ -1,5 +1,6 @@
 #include <wpe/webkit.h>
 #include <wpe/wpe.h>
+#include <getopt.h>
 #include <gio/gio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +8,7 @@
 // Global variables
 static WebKitWebView *web_view;
 static gchar *current_uri = NULL;
+static int maximized = 0;
 
 // Function to compare two strings after trimming whitespace
 int trimmed_strcmp0(const char *str1, const char *str2)
@@ -105,12 +107,26 @@ static gboolean load_view(gpointer user_data) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        g_printerr("Usage: %s <ctrl_file_path>\n", argv[0]);
-        return EXIT_FAILURE;
+    static struct option long_options[] = {
+        {"maximized", no_argument, &maximized, 1},
+        {0, 0, 0, 0}
+    };
+
+    int option_index = 0;
+    int c;
+    while ((c = getopt_long(argc, argv, "", long_options, &option_index)) != -1) {
+        if (c == '?') {
+            // Unknown option
+            return 1;
+        }
     }
 
-    const gchar *ctrl_file_path = argv[1];
+    if (optind >= argc) {
+        g_printerr("Usage: %s [--maximized] <ctrl_file_path>\n", argv[0]);
+        return 1;
+    }
+
+    const gchar *ctrl_file_path = argv[optind];
 
     // Create a new WebKitWebView
     g_autoptr(WebKitSettings) settings = webkit_settings_new();
@@ -125,6 +141,10 @@ int main(int argc, char *argv[]) {
 
     WPEToplevel *toplevel = wpe_view_get_toplevel(webkit_web_view_get_wpe_view(web_view));
     wpe_toplevel_resize(toplevel, 1024, 768);
+
+    if (maximized) {
+        maximize_window(web_view, TRUE);
+    }
 
     // Set up a timeout to check the file every second
     g_timeout_add(1000, load_view, (gpointer)ctrl_file_path);
