@@ -14,6 +14,7 @@ static gchar *current_uri = NULL;
 static int automation = 0;
 static int maximized = 0;
 static int fullscreen = 0;
+static gchar *ctrl_file_path = NULL;
 
 static gboolean automation_views_limit_reached = FALSE;
 
@@ -70,7 +71,11 @@ static void fullscreen_window(WebKitWebView *web_view, gboolean fullscreen) {
 
 // Timeout function to handle file content
 static gboolean load_view(gpointer user_data) {
-    const gchar *ctrl_file_path = (const gchar *)user_data;
+    if (!ctrl_file_path) {
+        g_warning("Control file path is not specified.");
+        return TRUE;
+    }
+
     gchar *content = read_file_content(ctrl_file_path);
 
     if (content == NULL) {
@@ -79,6 +84,7 @@ static gboolean load_view(gpointer user_data) {
     }
 
     if (trimmed_strcmp0(content, "done") == 0) {
+        g_free(content);
         return TRUE;
     }
 
@@ -154,6 +160,7 @@ on_web_context_automation_started(WebKitWebContext *context, WebKitAutomationSes
 int main(int argc, char *argv[]) {
     static struct option long_options[] = {
         {"automation", no_argument, &automation, 1},
+        {"ctrl", required_argument, 0, 'c'},
         {"fullscreen", no_argument, &fullscreen, 1},
         {"maximized", no_argument, &maximized, 1},
         {0, 0, 0, 0}
@@ -162,18 +169,19 @@ int main(int argc, char *argv[]) {
     int option_index = 0;
     int c;
     while ((c = getopt_long(argc, argv, "", long_options, &option_index)) != -1) {
-        if (c == '?') {
-            // Unknown option
-            return 1;
+        switch (c) {
+            case 'c':
+                ctrl_file_path = g_strdup(optarg);
+                break;
+            case '?':
+                return 1;
         }
     }
 
-    if (optind >= argc) {
-        g_printerr("Usage: %s [--fullscreen] [--maximized] [--automation] <ctrl_file_path>\n", argv[0]);
+    if (!ctrl_file_path) {
+        g_printerr("Usage: %s [--fullscreen] [--maximized] [--automation] --ctrl <ctrl_file_path>\n", argv[0]);
         return 1;
     }
-
-    const gchar *ctrl_file_path = argv[optind];
 
     WebKitWebContext *web_context = webkit_web_context_get_default();
     webkit_web_context_set_automation_allowed(web_context, (automation == 1));
@@ -206,8 +214,8 @@ int main(int argc, char *argv[]) {
         fullscreen_window(web_view, TRUE);
     }
 
-    // Set up a timeout to check the file every second
-    g_timeout_add(1000, load_view, (gpointer)ctrl_file_path);
+    // Set up a timeout to check the crtl file every second
+    g_timeout_add(1000, load_view, NULL);
 
     // Create and run the main loop
     g_autoptr(GMainLoop) loop = g_main_loop_new(NULL, TRUE);
@@ -218,5 +226,6 @@ int main(int argc, char *argv[]) {
     webkit_web_view_try_close(web_view);
 
     g_free(current_uri);
+    g_free(ctrl_file_path);
     return EXIT_SUCCESS;
 }
