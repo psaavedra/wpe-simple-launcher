@@ -157,11 +157,22 @@ on_web_context_automation_started(WebKitWebContext *context, WebKitAutomationSes
     g_signal_connect(session, "will-close", G_CALLBACK(on_automation_will_close), NULL);
 }
 
+static void print_help(const char *program_name) {
+    g_printerr("Usage: %s [OPTIONS] [URL]\n", program_name);
+    g_printerr("\nOptions:\n");
+    g_printerr("  --automation             Enable automation mode.\n");
+    g_printerr("  --fullscreen             Start in fullscreen mode.\n");
+    g_printerr("  --maximized              Start in maximized mode.\n");
+    g_printerr("  --ctrl <file_path>       Specify control file path (default: wpe-simple-launcher.ctrl).\n");
+    g_printerr("  --help                   Show this help message.\n");
+}
+
 int main(int argc, char *argv[]) {
     static struct option long_options[] = {
         {"automation", no_argument, &automation, 1},
         {"ctrl", required_argument, 0, 'c'},
         {"fullscreen", no_argument, &fullscreen, 1},
+        {"help", no_argument, 0, 'h'},
         {"maximized", no_argument, &maximized, 1},
         {0, 0, 0, 0}
     };
@@ -173,14 +184,20 @@ int main(int argc, char *argv[]) {
             case 'c':
                 ctrl_file_path = g_strdup(optarg);
                 break;
+            case 'h':
+                print_help(argv[0]);
+                return 0;
             case '?':
                 return 1;
         }
     }
 
+    if (optind < argc) {
+        current_uri = g_strdup(argv[optind]);
+    }
+
     if (!ctrl_file_path) {
-        g_printerr("Usage: %s [--fullscreen] [--maximized] [--automation] --ctrl <ctrl_file_path>\n", argv[0]);
-        return 1;
+        ctrl_file_path = g_strdup("wpe-simple-launcher.ctrl");
     }
 
     WebKitWebContext *web_context = webkit_web_context_get_default();
@@ -212,6 +229,10 @@ int main(int argc, char *argv[]) {
 
     if (fullscreen) {
         fullscreen_window(web_view, TRUE);
+    }
+
+    if (current_uri) {
+        webkit_web_view_load_uri(web_view, current_uri);
     }
 
     // Set up a timeout to check the crtl file every second
