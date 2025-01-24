@@ -61,11 +61,11 @@ static void fullscreen_window(WebKitWebView *web_view, gboolean fullscreen) {
 
 // Timeout function to handle file content
 static gboolean load_view(gpointer user_data) {
-    const gchar *file_path = (const gchar *)user_data;
-    gchar *content = read_file_content(file_path);
+    const gchar *ctrl_file_path = (const gchar *)user_data;
+    gchar *content = read_file_content(ctrl_file_path);
 
     if (content == NULL) {
-        g_warning("Failed to read the file: %s", file_path);
+        g_warning("Failed to read the file: %s", ctrl_file_path);
         return TRUE;
     }
 
@@ -99,18 +99,18 @@ static gboolean load_view(gpointer user_data) {
     }
 
     // Write 'done' to the file
-    write_done_to_file(file_path);
+    write_done_to_file(ctrl_file_path);
     g_free(content);
     return TRUE;
 }
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
-        g_printerr("Usage: %s <file_path>\n", argv[0]);
+        g_printerr("Usage: %s <ctrl_file_path>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
-    const gchar *file_path = argv[1];
+    const gchar *ctrl_file_path = argv[1];
 
     // Create a new WebKitWebView
     g_autoptr(WebKitSettings) settings = webkit_settings_new();
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
     wpe_toplevel_resize(toplevel, 1024, 768);
 
     // Set up a timeout to check the file every second
-    g_timeout_add(1000, load_view, (gpointer)file_path);
+    g_timeout_add(1000, load_view, (gpointer)ctrl_file_path);
 
     // Create and run the main loop
     g_autoptr(GMainLoop) loop = g_main_loop_new(NULL, TRUE);
