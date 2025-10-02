@@ -119,6 +119,27 @@ static gboolean load_view(gpointer user_data) {
     return TRUE;
 }
 
+static gboolean on_web_view_event(WPEView* view, WPEEvent* event, WebKitWebView* webView)
+{
+    if (wpe_event_get_event_type(event) != WPE_EVENT_KEYBOARD_KEY_DOWN)
+        return FALSE;
+
+    guint keyval = wpe_event_keyboard_get_keyval(event);
+    WPEToplevel* toplevel = wpe_view_get_toplevel(view);
+
+    if (keyval == WPE_KEY_F11) {
+        if (toplevel = wpe_view_get_toplevel(view)) {
+            if (wpe_toplevel_get_state(toplevel) & WPE_TOPLEVEL_STATE_FULLSCREEN)
+                wpe_toplevel_unfullscreen(toplevel);
+            else
+                wpe_toplevel_fullscreen(toplevel);
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
 static void on_web_view_close(WebKitWebView *web_view, void *user_data)
 {
     g_object_unref(web_view);
@@ -212,6 +233,11 @@ int main(int argc, char *argv[]) {
                             "website-policies", website_policy,
                             "is-controlled-by-automation", (automation == 1),
                             NULL);
+
+    g_autoptr(WPEView) wpe_view = webkit_web_view_get_wpe_view(web_view);
+    if (wpe_view) {
+        g_signal_connect(wpe_view, "event", G_CALLBACK(on_web_view_event), NULL);
+    }
     g_signal_connect(web_view, "close", G_CALLBACK(on_web_view_close), NULL);
 
     if (automation) {
