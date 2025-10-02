@@ -18,6 +18,16 @@ static gchar *ctrl_file_path = NULL;
 
 static gboolean automation_views_limit_reached = FALSE;
 
+static WebKitFeature* find_feature(WebKitFeatureList *feature_list, const char *identifier)
+{
+    for (gsize i = 0; i < webkit_feature_list_get_length(feature_list); i++) {
+        WebKitFeature *feature = webkit_feature_list_get(feature_list, i);
+        if (!g_ascii_strcasecmp(identifier, webkit_feature_get_identifier(feature)))
+            return feature;
+    }
+    return NULL;
+}
+
 // Function to compare two strings after trimming whitespace
 int trimmed_strcmp0(const char *str1, const char *str2)
 {
@@ -226,6 +236,22 @@ int main(int argc, char *argv[]) {
 
     // Create a new WebKitWebView
     g_autoptr(WebKitSettings) settings = webkit_settings_new();
+
+    g_autoptr(WebKitFeatureList) feature_list = webkit_settings_get_all_features();
+    WebKitFeature *feature;
+
+    feature = find_feature(feature_list, "PropagateDamagingInformation");
+    if (!feature) {
+        g_warning("Feature 'PropagateDamagingInformation' is not available, ignored.");
+    }
+    webkit_settings_set_feature_enabled(settings, feature, TRUE);
+
+    feature = find_feature(feature_list, "UseDamagingInformationForCompositing");
+    if (!feature) {
+        g_warning("Feature 'UseDamagingInformationForCompositing' is not available, ignored.");
+    }
+    webkit_settings_set_feature_enabled(settings, feature, TRUE);
+
     g_autoptr(WebKitWebsitePolicies) website_policy = webkit_website_policies_new();
     web_view = g_object_new(WEBKIT_TYPE_WEB_VIEW,
                             "settings", settings,
