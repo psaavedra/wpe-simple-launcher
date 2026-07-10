@@ -15,6 +15,7 @@ static int automation = 0;
 static int maximized = 0;
 static int fullscreen = 0;
 static gchar *ctrl_file_path = NULL;
+static gchar *feature_list = NULL;
 
 static gboolean automation_views_limit_reached = FALSE;
 
@@ -191,29 +192,61 @@ on_web_context_automation_started(WebKitWebContext *context, WebKitAutomationSes
 static void print_help(const char *program_name) {
     g_printerr("Usage: %s [OPTIONS] [URL]\n", program_name);
     g_printerr("\nOptions:\n");
-    g_printerr("  --automation             Enable automation mode.\n");
-    g_printerr("  --fullscreen             Start in fullscreen mode.\n");
-    g_printerr("  --maximized              Start in maximized mode.\n");
-    g_printerr("  --ctrl <file_path>       Specify control file path (default: wpe-simple-launcher.ctrl).\n");
-    g_printerr("  --help                   Show this help message.\n");
+    g_printerr("  --automation                  Enable automation mode.\n");
+    g_printerr("  --fullscreen                  Start in fullscreen mode.\n");
+    g_printerr("  --maximized                   Start in maximized mode.\n");
+    g_printerr("  --ctrl <file_path>            Specify control file path (default: wpe-simple-launcher.ctrl).\n");
+    g_printerr("  --features <feature_list>     Specify comma-separated list of features to enable.\n");
+    g_printerr("  --help                        Show this help message.\n");
+}
+
+static void print_features_help(const char *program_name)
+{
+    g_print("Multiple feature names may be specified separated by commas. No prefix or '+' enable\n"
+            "features, prefixes '-' and '!' disable features. Names are case-insensitive. Example:\n"
+            "\n    %s --features='!DirPseudo,+WebAnimationsCustomEffects,webgl'\n\n"
+            "Available features (+/- = enabled/disabled by default):\n\n", program_name);
+    g_autoptr(GEnumClass) statusEnum = (GEnumClass*)(g_type_class_ref(WEBKIT_TYPE_FEATURE_STATUS));
+    g_autoptr(WebKitFeatureList) features = webkit_settings_get_all_features();
+    for (gsize i = 0; i < webkit_feature_list_get_length(features); i++) {
+        WebKitFeature* feature = webkit_feature_list_get(features, i);
+        g_print("  %c %s (%s)",
+                webkit_feature_get_default_value(feature) ? '+' : '-',
+                webkit_feature_get_identifier(feature),
+                g_enum_get_value(statusEnum, webkit_feature_get_status(feature))->value_nick);
+        if (webkit_feature_get_name(feature))
+            g_print(": %s", webkit_feature_get_name(feature));
+        g_print("\n");
+    }
+}
+
+static void cleanup(void) {
+    g_free(ctrl_file_path);
+    g_free(feature_list);
+    g_free(current_uri);
 }
 
 int main(int argc, char *argv[]) {
+    atexit(cleanup);
     static struct option long_options[] = {
         {"automation", no_argument, &automation, 1},
         {"ctrl", required_argument, 0, 'c'},
         {"fullscreen", no_argument, &fullscreen, 1},
         {"help", no_argument, 0, 'h'},
         {"maximized", no_argument, &maximized, 1},
+        {"features", required_argument, 0, 'F'},
         {0, 0, 0, 0}
     };
 
     int option_index = 0;
     int c;
-    while ((c = getopt_long(argc, argv, "", long_options, &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "c:F:h", long_options, &option_index)) != -1) {
         switch (c) {
             case 'c':
                 ctrl_file_path = g_strdup(optarg);
+                break;
+            case 'F':
+                feature_list = g_strdup(optarg);
                 break;
             case 'h':
                 print_help(argv[0]);
@@ -231,26 +264,45 @@ int main(int argc, char *argv[]) {
         ctrl_file_path = g_strdup("wpe-simple-launcher.ctrl");
     }
 
+    if (!g_strcmp0(feature_list, "help")) {
+        print_features_help(argv[0]);
+        return 0;
+    }
+
     WebKitWebContext *web_context = webkit_web_context_get_default();
     webkit_web_context_set_automation_allowed(web_context, (automation == 1));
 
     // Create a new WebKitWebView
     g_autoptr(WebKitSettings) settings = webkit_settings_new();
 
-    g_autoptr(WebKitFeatureList) feature_list = webkit_settings_get_all_features();
-    WebKitFeature *feature;
+    if (feature_list) {
+        g_autoptr(WebKitFeatureList) features = webkit_settings_get_all_features();
+        g_auto(GStrv) items = g_strsplit(feature_list, ",", -1);
+        for (gsize i = 0; items[i]; i++) {
+            char* item = g_strstrip(items[i]);
+            gboolean enabled = TRUE;
+            switch (item[0]) {
+            case '!':
+            case '-':
+                enabled = FALSE;
+            case '+':
+                item++;
+            default:
+                break;
+            }
 
-    feature = find_feature(feature_list, "PropagateDamagingInformation");
-    if (!feature) {
-        g_warning("Feature 'PropagateDamagingInformation' is not available, ignored.");
-    }
-    webkit_settings_set_feature_enabled(settings, feature, TRUE);
+            if (item[0] == '\0') {
+                g_printerr("Empty feature name specified, skipped.\n");
+                continue;
+            }
 
-    feature = find_feature(feature_list, "UseDamagingInformationForCompositing");
-    if (!feature) {
-        g_warning("Feature 'UseDamagingInformationForCompositing' is not available, ignored.");
+            WebKitFeature* feature = find_feature(features, item);
+            if (feature)
+                webkit_settings_set_feature_enabled(settings, feature, enabled);
+            else
+                g_printerr("Feature '%s' is not available.\n", item);
+        }
     }
-    webkit_settings_set_feature_enabled(settings, feature, TRUE);
 
     g_autoptr(WebKitWebsitePolicies) website_policy = webkit_website_policies_new();
     web_view = g_object_new(WEBKIT_TYPE_WEB_VIEW,
@@ -298,7 +350,5 @@ int main(int argc, char *argv[]) {
 
     webkit_web_view_try_close(web_view);
 
-    g_free(current_uri);
-    g_free(ctrl_file_path);
     return EXIT_SUCCESS;
 }
