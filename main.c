@@ -4,6 +4,7 @@
 #include <gio/gio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <glib-unix.h>
 
 #define WPE_SIMPLE_LAUNCHER_VERSION_MAJOR 1
 #define WPE_SIMPLE_LAUNCHER_VERSION_MINOR 0
