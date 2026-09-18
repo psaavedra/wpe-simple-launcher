@@ -1,5 +1,5 @@
 #include <wpe/webkit.h>
-#include <wpe/wpe.h>
+#include <wpe/wpe-platform.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
